@@ -1,19 +1,11 @@
 # syntax=docker/dockerfile:1
 
-# get OSX SDK
-ARG OSXCROSS_VERSION=latest
-FROM crazymax/osxcross:${OSXCROSS_VERSION}-ubuntu AS osxcross
-
 FROM ubuntu:20.04
-ENV PATH="/osxcross/bin:$PATH"
-ENV LD_LIBRARY_PATH="/osxcross/lib:$LD_LIBRARY_PATH"
-COPY --from=osxcross /osxcross /osxcross
 
 ARG DEBIAN_FRONTEND=noninteractive
 # install most the compilers needed for all targets
 RUN apt-get update && apt-get install -y clang lld libc6-dev \
     cmake make libtool gcc g++ \
-    gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
     gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
     python3-pip
 
@@ -26,9 +18,6 @@ RUN if [ "$(uname -m)" = "x86_64" ]; then \
 
 # install python libraries
 RUN pip install numpy
-
-# support from win7 in mingw
-ENV CXXFLAGS="-DWINVER=0x0600 -D_WIN32_WINNT=0x0600"
 
 # install building script
 COPY ./assets/build.sh /build.sh

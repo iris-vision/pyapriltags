@@ -69,12 +69,12 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: macos-libraries
-        path: ./dist/macos
+        path: ./libs/macos
     - name: Download Windows build artifacts
       uses: actions/download-artifact@v3
       with:
         name: windows-libraries
-        path: ./dist/win64
+        path: ./libs/win64
     - name: Install tree utility
       run: sudo apt-get install -y tree
     - name: Show directory tree

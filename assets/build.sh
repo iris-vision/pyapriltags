@@ -5,7 +5,7 @@
 # TODO quit if /apriltag doesn't exist
 
 mkdir -p \
-    /{builds,dist}/{win64,mac_aarch64,mac_amd64,linux_amd64,linux_aarch64,linux_armhf}
+    /{builds,dist}/{linux_amd64,linux_aarch64,linux_armhf}
 mkdir out
 
 COMMON_CMAKE_ARGS="-DBUILD_SHARED_LIBS=ON -DCMAKE_C_COMPILER_WORKS=1 -DCMAKE_CXX_COMPILER_WORKS=1 -DCMAKE_BUILD_TYPE=Release"
