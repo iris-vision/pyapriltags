@@ -4,63 +4,18 @@ on:
   push:
 
 jobs:
-  build:
-    name: Build for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact: apriltag-wheels-linux
-          - os: windows-latest
-            artifact: apriltag-wheels-windows
-          - os: macos-latest
-            artifact: apriltag-wheels-macos
-
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: true
 
-    - name: Set up build environment (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
-        mkdir -p builds/{linux_amd64,linux_aarch64,linux_armhf} dist/{linux_amd64,linux_aarch64,linux_armhf}
-
     - name: Set up build environment (Windows)
-      if: runner.os == 'Windows'
       uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Set up build environment (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        brew install cmake
-        mkdir -p builds/{x86_64,arm64} dist/{x86_64,arm64}
-
-    - name: Build AprilTag libraries (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        COMMON_CMAKE_ARGS="-DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release"
-        
-        do_compile() {
-          echo ">>> BUILDING APRILTAG for $1"
-          mkdir -p builds/$1
-          cd builds/$1
-          cmake $4 -DCMAKE_C_COMPILER=$2 -DCMAKE_CXX_COMPILER=$3 $COMMON_CMAKE_ARGS $GITHUB_WORKSPACE/apriltags
-          cmake --build .
-          cp -L libapriltag.* ../../dist/$1/
-          cd ../..
-        }
-        
-        do_compile linux_amd64 gcc g++ "-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86_64"
-        do_compile linux_aarch64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++ "-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm"
-        do_compile linux_armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ "-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm"
-
     - name: Build AprilTag library (Windows)
-      if: runner.os == 'Windows'
       shell: cmd
       run: |
         mkdir build
@@ -68,10 +23,28 @@ jobs:
         cmake -G "NMake Makefiles" -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl ..\apriltags
         nmake
         mkdir ..\dist
-        copy apriltag.dll ..\dist
+        copy apriltag.dll ..\dist\libapriltag.dll
+
+    - name: Upload Windows build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: apriltag-wheels-windows
+        path: dist
+        
+  build-macos:
+    name: Build on macOS
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Set up build environment (macOS)
+      run: |
+        brew install cmake
+        mkdir -p builds/{x86_64,arm64} dist/{x86_64,arm64}
 
     - name: Build AprilTag libraries (macOS)
-      if: runner.os == 'macOS'
       run: |
         build_for_arch() {
           mkdir -p builds/$1
@@ -85,56 +58,39 @@ jobs:
         build_for_arch x86_64
         build_for_arch arm64
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-
-    - name: Build Python wheels
-      run: |
-        pip install wheel
-        
-        build_wheel() {
-          local arch=$1
-          local lib=$2
-          local plat=$3
-
-          cp dist/$arch/$lib pyapriltags/
-          # Export CIBW_BUILD to ensure platform-specific wheel
-          CIBW_BUILD=$plat pip wheel --wheel-dir wheelhouse --no-deps .
-          rm pyapriltags/$lib
-        }        
-
-        if [ "$RUNNER_OS" == "Linux" ]; then
-          build_wheel linux_amd64 libapriltag.so manylinux2014_x86_64
-          build_wheel linux_aarch64 libapriltag.so manylinux2014_aarch64
-          build_wheel linux_armhf libapriltag.so manylinux2014_armv7l
-        elif [ "$RUNNER_OS" == "Windows" ]; then
-          build_wheel . apriltag.dll win_amd64
-        elif [ "$RUNNER_OS" == "macOS" ]; then
-          build_wheel x86_64 libapriltag.dylib macosx_10_9_x86_64
-          build_wheel arm64 libapriltag.dylib macosx_11_0_arm64
-        fi
-      shell: bash
-
-    - name: Upload artifact
+    - name: Upload macOS build artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.artifact }}
-        path: wheelhouse/*.whl
+        name: apriltag-wheels-macos
+        path: dist
 
-  collect-wheels:
-    name: Collect All Wheels
-    needs: build
+  move-and-build-linux:
+    name: Move artifacts and build on Linux
     runs-on: ubuntu-latest
+    needs: [build-windows, build-macos]
     steps:
-    - uses: actions/download-artifact@v3
+    - name: Download Windows artifacts
+      uses: actions/download-artifact@v3
       with:
-        path: ./all-wheels
-    - name: Display structure of downloaded files
-      run: ls -R ./all-wheels
-    - name: Upload combined artifacts
-      uses: actions/upload-artifact@v3
+        name: apriltag-wheels-windows
+        path: windows-dist
+
+    - name: Download macOS artifacts
+      uses: actions/download-artifact@v3
       with:
-        name: apriltag-all-wheels
-        path: ./all-wheels/**/*.whl
+        name: apriltag-wheels-macos
+        path: macos-dist
+
+    - name: Set up Linux environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y make cmake
+
+    - name: Make build on Linux
+      run: |
+        mkdir -p combined-dist
+        cp -r windows-dist/* combined-dist/
+        cp -r macos-dist/* combined-dist/
+        cd combined-dist
+        make build
+
