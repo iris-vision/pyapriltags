@@ -1,0 +1,84 @@
+name: Build AprilTag
+
+on:
+  push:
+
+jobs:
+  build-windows:
+    name: Build Libraries (Windows)
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Set up build environment (Windows)
+      uses: ilammy/msvc-dev-cmd@v1
+    - name: Build AprilTag library (Windows)
+      shell: cmd
+      run: |
+        mkdir build
+        cd build
+        cmake -G "NMake Makefiles" -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl ..\apriltags
+        nmake
+        mkdir ..\dist
+        copy apriltag.dll ..\dist\libapriltag.dll
+    - name: Upload Windows build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-libraries
+        path: dist
+
+  build-macos:
+    name: Build Libraries (macOS)
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Set up build environment (macOS)
+      run: |
+        mkdir -p builds/{x86_64,arm64} dist/{x86_64,arm64}
+    - name: Build AprilTag libraries (macOS)
+      run: |
+        build_for_arch() {
+          mkdir -p builds/$1
+          cd builds/$1
+          cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=$1 ../../apriltags
+          cmake --build .
+          cp libapriltag.dylib ../../dist/$1/
+          cd ../..
+        }
+        
+        build_for_arch x86_64
+        build_for_arch arm64
+    - name: Upload macOS build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-libraries
+        path: dist
+
+  build-ubuntu:
+    name: Build Wheels
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-macos]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Download macOS build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: macos-libraries
+        path: ./libs/macos
+    - name: Download Windows build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: windows-libraries
+        path: ./libs/win64
+    - name: Run make build
+      run: make build
+    - name: Upload Python Wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels
+        path: dist

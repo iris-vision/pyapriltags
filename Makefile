@@ -11,9 +11,10 @@ build:
 	mkdir -p ${ROOT}/dist
 	# build wheel
 	docker run \
-		-it --rm \
+		--rm \
 		-v ${ROOT}:/apriltag \
 		-v ${ROOT}/dist:/out \
+		-v ${ROOT}/libs:/dist \
 		pyapriltags:wheel-python3
 
 upload:
