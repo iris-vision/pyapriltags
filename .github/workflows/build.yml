@@ -1,0 +1,138 @@
+name: Build AprilTag
+
+on:
+  push:
+
+jobs:
+  build-linux:
+    name: Build for Linux
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux2014_x86_64
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up build environment
+      run: |
+        yum install -y cmake
+        mkdir -p /builds/{linux_amd64,linux_aarch64,linux_armhf}
+        mkdir -p /dist/{linux_amd64,linux_aarch64,linux_armhf}
+        mkdir /out
+    - name: Build AprilTag libraries
+      run: |
+        COMMON_CMAKE_ARGS="-DBUILD_SHARED_LIBS=ON -DCMAKE_C_COMPILER_WORKS=1 -DCMAKE_CXX_COMPILER_WORKS=1 -DCMAKE_BUILD_TYPE=Release"
+        
+        do_compile() {
+          printf "\n>>> BUILDING APRILTAG for $1\n"
+          cd /builds/$1 || return
+          cmake $4 \
+              -DCMAKE_C_COMPILER=$2 -DCMAKE_CXX_COMPILER=$3 \
+              $COMMON_CMAKE_ARGS $GITHUB_WORKSPACE/apriltags || return
+          cmake --build . --config Release || return
+          cp -L libapriltag.* /dist/$1
+        }
+        
+        do_compile linux_amd64 gcc g++ "-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86_64"
+        do_compile linux_aarch64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++ "-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm"
+        do_compile linux_armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ "-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=arm"
+    - name: Build Python wheels
+      run: |
+        build_wheel() {
+          cp /dist/$1/$2 pyapriltags/ || return
+          pip wheel --wheel-dir /out --no-deps --build-option=--plat-name=$3 .
+          rm -rf build/lib
+          rm pyapriltags/$2
+        }
+        
+        build_wheel linux_amd64 libapriltag.so manylinux2014_x86_64
+        build_wheel linux_aarch64 libapriltag.so manylinux2014_aarch64
+        build_wheel linux_armhf libapriltag.so manylinux2014_armv7l
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: apriltag-wheels-linux
+        path: /out/*.whl
+
+  build-windows:
+    name: Build for Windows
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc
+    - name: Build AprilTag library
+      shell: msys2 {0}
+      run: |
+        mkdir -p build dist
+        cd build
+        cmake -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release ../apriltags
+        cmake --build .
+        cp libapriltag.dll ../dist/
+    - name: Build Python wheel
+      run: |
+        pip install wheel
+        cp dist/libapriltag.dll pyapriltags/
+        pip wheel --wheel-dir wheelhouse --no-deps --build-option=--plat-name=win_amd64 .
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: apriltag-wheels-windows
+        path: wheelhouse/*.whl
+
+  build-macos:
+    name: Build for macOS
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up build environment
+      run: |
+        brew install cmake
+        mkdir -p build/{amd64,arm64} dist/{amd64,arm64}
+    - name: Build AprilTag libraries
+      run: |
+        build_for_arch() {
+          cd build/$1
+          cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=$1 ../../apriltags
+          cmake --build .
+          cp libapriltag.dylib ../../dist/$1/
+          cd ../..
+        }
+        
+        build_for_arch x86_64
+        build_for_arch arm64
+    - name: Build Python wheels
+      run: |
+        pip install wheel
+        
+        build_wheel() {
+          cp dist/$1/libapriltag.dylib pyapriltags/
+          pip wheel --wheel-dir wheelhouse --no-deps --build-option=--plat-name=$2 .
+          rm pyapriltags/libapriltag.dylib
+        }
+        
+        build_wheel amd64 macosx_10_9_x86_64
+        build_wheel arm64 macosx_11_0_arm64
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: apriltag-wheels-macos
+        path: wheelhouse/*.whl
+
+  collect-wheels:
+    name: Collect All Wheels
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v2
+      with:
+        path: ./all-wheels
+    - name: Display structure of downloaded files
+      run: ls -R ./all-wheels
+    - name: Upload combined artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: apriltag-all-wheels
+        path: ./all-wheels/**/*.whl
