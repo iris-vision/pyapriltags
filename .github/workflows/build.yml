@@ -8,7 +8,7 @@ jobs:
     name: Build on Windows
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Set up build environment (Windows)
@@ -23,7 +23,7 @@ jobs:
         mkdir ..\dist
         copy apriltag.dll ..\dist\libapriltag.dll
     - name: Upload Windows build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: windows-libraries
         path: dist
@@ -32,7 +32,7 @@ jobs:
     name: Build on macOS
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Set up build environment (macOS)
@@ -52,7 +52,7 @@ jobs:
         build_for_arch x86_64
         build_for_arch arm64
     - name: Upload macOS build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: macos-libraries
         path: dist
@@ -62,24 +62,23 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-windows, build-macos]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Download macOS build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: macos-libraries
         path: ./libs/macos
     - name: Download Windows build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: windows-libraries
         path: ./libs/win64
-    - name: Install tree utility
-      run: sudo apt-get install -y tree
-    - name: Show directory tree
-      run: tree
     - name: Run make build
       run: make build
-    - name: Show directory tree
-      run: tree
+    - name: Upload Python Wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels
+        path: dist
