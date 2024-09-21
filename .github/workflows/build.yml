@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     
     strategy:
       matrix:
@@ -37,7 +37,7 @@ jobs:
         mkdir -p dist/${{ matrix.os }}_${{ matrix.arch }}
         mkdir out
     
-    - name: Install dependencies
+    - name: Install dependencies (Ubuntu & macOS)
       if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
       run: |
         sudo apt-get update || true
@@ -45,6 +45,8 @@ jobs:
         if [ "${{ matrix.arch }}" == "aarch64" ] || [ "${{ matrix.arch }}" == "armhf" ]; then
           sudo apt-get install -y gcc-${{ matrix.arch }} g++-${{ matrix.arch }}
         fi
+    
+    - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
@@ -54,7 +56,7 @@ jobs:
       run: |
         do_compile() {
           printf "\n>>> BUILDING APRILTAG for $1\n"
-          mkdir builds/$1
+          mkdir -p builds/$1
           cd builds/$1 || return
           cmake $4 \
               -DCMAKE_C_COMPILER=$2 -DCMAKE_CXX_COMPILER=$3 \
@@ -81,14 +83,17 @@ jobs:
     - name: Build wheel
       run: |
         cp dist/${{ matrix.os }}_${{ matrix.arch }}/* pyapriltags/ || return
-        ARCH_MAPPING={{
-          "linux_amd64": "manylinux2010_x86_64",
-          "linux_aarch64": "manylinux2014_aarch64",
-          "linux_armhf": "manylinux2014_armv7l",
-          "win64": "win-amd64",
-          "mac_amd64": "macosx_11_0_x86_64"
-        }}
-        pip wheel --wheel-dir out --no-deps --build-option=--plat-name=${{fromJSON(ARCH_MAPPING)[matrix.os+'_'+matrix.arch]}} .
+        ARCH_MAPPING=$(jq -n \
+          --arg lnx_amd64 "manylinux2010_x86_64" \
+          --arg lnx_aarch64 "manylinux2014_aarch64" \
+          --arg lnx_armhf "manylinux2014_armv7l" \
+          --arg win64 "win-amd64" \
+          --arg mac_amd64 "macosx_11_0_x86_64" \
+          '{linux_amd64: $lnx_amd64, linux_aarch64: $lnx_aarch64, linux_armhf: $lnx_armhf, win64: $win64, mac_amd64: $mac_amd64}')
+        
+        WHEEL_PLAT=$(echo "${ARCH_MAPPING}" | jq -r .${{ matrix.os }}_${{ matrix.arch }})
+        
+        pip wheel --wheel-dir out --no-deps --build-option=--plat-name=${WHEEL_PLAT} .
         rm -rf build/lib  # remove cached shared libraries
         rm pyapriltags/*
     
