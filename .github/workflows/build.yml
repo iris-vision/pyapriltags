@@ -68,6 +68,7 @@ jobs:
         cmake -G "NMake Makefiles" -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl ..\apriltags
         nmake
         mkdir ..\dist
+        dir
         copy libapriltag.dll ..\dist
 
     - name: Build AprilTag libraries (macOS)
