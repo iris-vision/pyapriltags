@@ -68,7 +68,6 @@ jobs:
         cmake -G "NMake Makefiles" -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl ..\apriltags
         nmake
         mkdir ..\dist
-        dir
         copy apriltag.dll ..\dist
 
     - name: Build AprilTag libraries (macOS)
@@ -96,11 +95,16 @@ jobs:
         pip install wheel
         
         build_wheel() {
-          cp dist/$1/$2 pyapriltags/
-          pip wheel --wheel-dir wheelhouse --no-deps --build-option=--plat-name=$3 .
-          rm pyapriltags/$2
-        }
-        
+          local arch=$1
+          local lib=$2
+          local plat=$3
+
+          cp dist/$arch/$lib pyapriltags/
+          # Export CIBW_BUILD to ensure platform-specific wheel
+          CIBW_BUILD=$plat pip wheel --wheel-dir wheelhouse --no-deps .
+          rm pyapriltags/$lib
+        }        
+
         if [ "$RUNNER_OS" == "Linux" ]; then
           build_wheel linux_amd64 libapriltag.so manylinux2014_x86_64
           build_wheel linux_aarch64 libapriltag.so manylinux2014_aarch64
