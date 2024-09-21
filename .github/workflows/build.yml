@@ -69,7 +69,7 @@ jobs:
         nmake
         mkdir ..\dist
         dir
-        copy libapriltag.dll ..\dist
+        copy apriltag.dll ..\dist
 
     - name: Build AprilTag libraries (macOS)
       if: runner.os == 'macOS'
@@ -106,7 +106,7 @@ jobs:
           build_wheel linux_aarch64 libapriltag.so manylinux2014_aarch64
           build_wheel linux_armhf libapriltag.so manylinux2014_armv7l
         elif [ "$RUNNER_OS" == "Windows" ]; then
-          build_wheel . libapriltag.dll win_amd64
+          build_wheel . apriltag.dll win_amd64
         elif [ "$RUNNER_OS" == "macOS" ]; then
           build_wheel x86_64 libapriltag.dylib macosx_10_9_x86_64
           build_wheel arm64 libapriltag.dylib macosx_11_0_arm64
