@@ -46,5 +46,5 @@ build_wheel linux_aarch64 libapriltag.so manylinux2014_aarch64
 build_wheel linux_amd64 libapriltag.so manylinux2010_x86_64
 build_wheel linux_armhf libapriltag.so manylinux2014_armv7l
 build_wheel win64 libapriltag.dll win-amd64
-build_wheel mac_aarch64 libapriltag.dylib macosx_11_0_arm64
-build_wheel mac_amd64 libapriltag.dylib macosx_11_0_x86_64
+build_wheel macos/arm64 libapriltag.dylib macosx_11_0_arm64
+build_wheel macos/x86_64 libapriltag.dylib macosx_11_0_x86_64

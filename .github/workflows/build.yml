@@ -74,10 +74,12 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: windows-libraries
-        path: ./dist/windows
+        path: ./dist/win64
     - name: Install tree utility
       run: sudo apt-get install -y tree
     - name: Show directory tree
       run: tree
     - name: Run make build
       run: make build
+    - name: Show directory tree
+      run: tree
