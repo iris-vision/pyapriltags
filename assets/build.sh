@@ -27,9 +27,6 @@ build_wheel() {
     rm pyapriltags/$2
 }
 
-do_compile win64 x86_64-w64-mingw32-gcc x86_64-w64-mingw32-g++ "-DCMAKE_SYSTEM_NAME=Windows"
-do_compile mac_aarch64 oa64-clang oa64-clang++ "-DCMAKE_SYSTEM_NAME=Darwin -DCMAKE_OSX_ARCHITECTURES=arm64"
-do_compile mac_amd64 o64-clang o64-clang++ "-DCMAKE_SYSTEM_NAME=Darwin -DCMAKE_OSX_ARCHITECTURES=x86_64"
 ARCH="$(uname -m)"
 if [[ "$ARCH" == "x86_64" ]]; then
     do_compile linux_amd64 gcc g++ "-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86_64"
