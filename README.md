@@ -2,7 +2,7 @@
 
 These are Python bindings for the [Apriltags 3](https://github.com/AprilRobotics/apriltags) library developed by [AprilRobotics](https://april.eecs.umich.edu/).
 Inspired by the [Apriltags2 bindings](https://github.com/swatbotics/apriltag) by [Matt Zucker](https://github.com/mzucker).
-Forked from [dt-apriltags](https://github.com/duckietown/lib-dt-apriltags).
+Forked from [WillB97/pyapriltags](https://github.com/WillB97/pyapriltags).
 
 The original library is published with a [BSD 2-Clause license](https://github.com/AprilRobotics/apriltag/blob/master/LICENSE.md).
 
